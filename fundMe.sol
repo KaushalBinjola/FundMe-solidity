@@ -8,11 +8,18 @@ import "@chainlink/contracts/src/v0.6/vendor/SafeMathChainlink.sol";
 contract FundMe{
     using SafeMathChainlink for uint256;
     mapping(address => uint256) public addrToAmtFunded;
+    address public owner; 
+    address[] public funders;
+
+    constructor() public{
+        owner = msg.sender;
+    }
 
     function fund() public payable{
         uint256 minUSD = 50 * 10**18;
         require(getConversion(msg.value)>=minUSD, "Spend More ETH!");
         addrToAmtFunded[msg.sender] += msg.value;
+        funders.push(msg.sender);
     }
 
     function getVersion() public view returns(uint256){
@@ -30,5 +37,19 @@ contract FundMe{
         uint256 ethPrice = getPrice();
         uint256 ethInUSD = (ethPrice * ethAmount) / 1000000000000000000;
         return ethInUSD;
+    }
+
+    modifier onlyOwner(){
+        require(msg.sender == owner);
+        _;
+    }
+
+    function withdraw() public payable onlyOwner{
+        msg.sender.transfer(address(this).balance);
+        for(uint256 funderIndex=0; funderIndex<funders.length; funderIndex++){
+            address funder = funders[funderIndex];
+            addrToAmtFunded[funder] = 0;
+        }
+        funders = new address[](0);
     }
 }
